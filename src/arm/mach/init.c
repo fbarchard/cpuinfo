@@ -599,18 +599,35 @@ void cpuinfo_arm_mach_init(void) {
 	}
 
 	cpuinfo_isa.i8mm = get_sys_info_by_name("hw.optional.arm.FEAT_I8MM") != 0;
-	cpuinfo_isa.sme = get_sys_info_by_name("hw.optional.arm.FEAT_SME") != 0;
-	cpuinfo_isa.sme2 = get_sys_info_by_name("hw.optional.arm.FEAT_SME2") != 0;
-	cpuinfo_isa.sme2p1 = get_sys_info_by_name("hw.optional.arm.FEAT_SME2p1") != 0;
-	cpuinfo_isa.sme_i16i32 = get_sys_info_by_name("hw.optional.arm.SME_I16I32") != 0;
-	cpuinfo_isa.sme_bi32i32 = get_sys_info_by_name("hw.optional.arm.SME_BI32I32") != 0;
-	cpuinfo_isa.sme_b16b16 = get_sys_info_by_name("hw.optional.arm.FEAT_SME_B16B16") != 0;
-	cpuinfo_isa.sme_f16f16 = get_sys_info_by_name("hw.optional.arm.FEAT_SME_F16F16") != 0;
+
+	// An Apple processor may have SME hardware (e.g. A18/A19), but the XNU kernel
+	// only enables EL0 execution if sme_max_svl_b > 0.
+	// macOS and iPadOS (e.g. on M4) support and enable user-mode SME, but iOS
+	// disables user-mode SME, which causes SMSTART to trigger an EXC_BAD_INSTRUCTION fault.
+	const uint32_t smelen = get_sys_info_by_name("hw.optional.arm.sme_max_svl_b");
+	if (smelen > 0) {
+		cpuinfo_isa.sme = get_sys_info_by_name("hw.optional.arm.FEAT_SME") != 0;
+		cpuinfo_isa.sme2 = get_sys_info_by_name("hw.optional.arm.FEAT_SME2") != 0;
+		cpuinfo_isa.sme2p1 = get_sys_info_by_name("hw.optional.arm.FEAT_SME2p1") != 0;
+		cpuinfo_isa.sme_i16i32 = get_sys_info_by_name("hw.optional.arm.SME_I16I32") != 0;
+		cpuinfo_isa.sme_bi32i32 = get_sys_info_by_name("hw.optional.arm.SME_BI32I32") != 0;
+		cpuinfo_isa.sme_b16b16 = get_sys_info_by_name("hw.optional.arm.FEAT_SME_B16B16") != 0;
+		cpuinfo_isa.sme_f16f16 = get_sys_info_by_name("hw.optional.arm.FEAT_SME_F16F16") != 0;
+		cpuinfo_isa.smelen = smelen;
+	} else {
+		cpuinfo_isa.sme = false;
+		cpuinfo_isa.sme2 = false;
+		cpuinfo_isa.sme2p1 = false;
+		cpuinfo_isa.sme_i16i32 = false;
+		cpuinfo_isa.sme_bi32i32 = false;
+		cpuinfo_isa.sme_b16b16 = false;
+		cpuinfo_isa.sme_f16f16 = false;
+		cpuinfo_isa.smelen = 0;
+	}
+
 	cpuinfo_isa.fp8 = get_sys_info_by_name("hw.optional.arm.FEAT_FP8") != 0;
 	cpuinfo_isa.f8dot = get_sys_info_by_name("hw.optional.arm.FEAT_FP8DOT4") != 0;
 	cpuinfo_isa.f8mm = get_sys_info_by_name("hw.optional.arm.FEAT_F8F32MM") != 0;
-
-	cpuinfo_isa.smelen = get_sys_info_by_name("hw.optional.arm.sme_max_svl_b");
 
 	uint32_t num_clusters = 1;
 	for (uint32_t i = 0; i < mach_topology.cores; i++) {
